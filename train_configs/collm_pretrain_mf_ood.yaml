@@ -9,7 +9,7 @@ model:
   proj_drop: 0 # by default
   proj_mid_times: 10 # proj_mid_times * rec embedding size = the middle layer size of the mapping module
   end_sym: "###"
-  prompt_path: "prompts/collm_movie.txt"
+  prompt_path: "prompts/collm_movie_codi.txt"
   prompt_template: '{}'
   llama_model:  # vicuna path
   user_num: -100
