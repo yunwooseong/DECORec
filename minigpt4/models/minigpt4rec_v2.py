@@ -784,36 +784,26 @@ class MiniGPT4Rec_v2(Rec2Base):
         total_loss = bce_loss + lambda_reg * l2_penalty
         return total_loss
 
-    def selective_layer(self, model, inputs, candidate_layers=None):
-        inputs_embeds, attention_mask, vanilla_targets, t_posi, pos_ans_id, neg_ans_id = inputs
-        with torch.no_grad():
-            outputs = model(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                return_dict=True,
-                labels=vanilla_targets,
-                output_hidden_states=True
-            )
-        
-        all_hidden_states = outputs.hidden_states
+    def selective_layer(self, lm_head, inputs, candidate_layers=None):
+        all_hidden_states, t_posi, pos_ans_id, neg_ans_id = inputs
         last_hidden_state = all_hidden_states[-1] 
-        vanilla_pos_logit = model.lm_head(last_hidden_state)[:, -t_posi, :][:, pos_ans_id]
+        vanilla_pos_logit = lm_head(last_hidden_state)[:, -t_posi, :][:, pos_ans_id]
         
         ## select only 1 layer
         if len(candidate_layers) == 1:
             candidate_hidden = all_hidden_states[candidate_layers[0]]
-            candidate_logit = model.lm_head(candidate_hidden)
+            candidate_logit = lm_head(candidate_hidden)
             minus_logits = candidate_logit[:, -t_posi, :][:, [pos_ans_id, neg_ans_id]]
-        
+
         ## select and compare multiple layers
         else:
             candidate_logits = torch.stack([
-                model.lm_head(all_hidden_states[i])[:, -t_posi, :][:, [pos_ans_id, neg_ans_id]]
-                for i in candidate_layers
-            ])
+                            lm_head(all_hidden_states[i])[:, -t_posi, :][:, [pos_ans_id, neg_ans_id]]
+                            for i in candidate_layers
+                        ])
 
             differences = (vanilla_pos_logit.unsqueeze(0) - candidate_logits[:, :, 0]).abs() 
-
+            
             max_diff_index = torch.argmax(differences, dim=0)
             batch_indices = torch.arange(candidate_logits.size(1))
             minus_logits = candidate_logits[max_diff_index, batch_indices]
@@ -856,7 +846,7 @@ class MiniGPT4Rec_v2(Rec2Base):
                 atts_samples = atts_samples[true_idx]
             else:
                 prompt = self.prompt_list[0]
-                sample_embeds, atts_samples = self.prompt_based_encode_v2(prompt,samples)
+                # sample_embeds, atts_samples = self.prompt_based_encode_v2(prompt, samples)
                 # sample_embeds, atts_samples, plus_sample_embeds, plus_atts_samples, minus_sample_embeds, minus_atts_samples = self.prompt_based_encode_v2_cd_text(prompt, samples) # for using context minus
                 sample_embeds, atts_samples, plus_sample_embeds, plus_atts_samples = self.prompt_based_encode_v2_cd_layer(prompt, samples) # for using selective layer
 
@@ -938,6 +928,7 @@ class MiniGPT4Rec_v2(Rec2Base):
                     attention_mask=attention_mask,
                     return_dict=True,
                     labels=vanilla_targets,
+                    output_hidden_states=True ## for Selective Layer
                 )
 
                 plus_outputs = self.llama_model_lora(
@@ -966,9 +957,9 @@ class MiniGPT4Rec_v2(Rec2Base):
         # minus_logits = minus_outputs.logits[:,-t_posi,:][:,[pos_ans_id, neg_ans_id]] ## for using context minus
         
         ## for using selective layer
-        cd_inputs = (inputs_embeds, attention_mask, vanilla_targets, t_posi, pos_ans_id, neg_ans_id)
+        cd_inputs = (outputs.hidden_states, t_posi, pos_ans_id, neg_ans_id)
         candidate_layers = [1, 2, 3] 
-        minus_logits = self.selective_layer(self.llama_model_lora, cd_inputs, candidate_layers=candidate_layers)
+        minus_logits = self.selective_layer(self.llama_model_lora.lm_head, cd_inputs, candidate_layers=candidate_layers)
 
         alpha = logits / (logits + plus_logits)
         logits_final = logits[:, 0] + alpha[:, 0] * (plus_logits[:, 0] - minus_logits[:, 0])
