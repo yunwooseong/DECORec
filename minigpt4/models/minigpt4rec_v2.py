@@ -363,69 +363,6 @@ class MiniGPT4Rec_v2(Rec2Base):
             else:
                 raise RuntimeError("the pretraining just support one type prompt") 
             return prompt_embeds, prompts_tokens.attention_mask
-
-        
-    # def recprompt_wrap_v2(self, samples, ori_samples, atts_sample, prompt): # used for stage 2
-    #     if prompt:
-    #         prompt_ori = prompt
-    #         split_symbol = ["<UserID>", "<ItemIDList>", "<ItemTitleList>", "<TargetItemID>", "<TargetItemTitle>"]
-    #         batch_size = ori_samples['UserID'].shape[0]
-    #         bos = "<s>"
-    #         unk_ = self.llama_tokenizer.unk_token #"<unk>"
-    #         unk_ = ".".join([unk_]*self.proj_token_num)
-    #         prompt = bos + prompt # add the bos
-    #         prompt = prompt.replace("<UserID>", unk_)
-    #         prompt = prompt.replace("<TargetItemID>", unk_)
-
-    #         # interactedItems = samples['InteractedItemTitles']
-    #         prompt_list = []
-            
-            
-    #         for k in range(batch_size):
-    #             prompt_ = prompt+""
-    #             # prompt_ = prompt.replace('UserID',unk_)
-    #             # item_num = samples['interacted']
-    #             if 'InteractedNum' in ori_samples.keys():
-    #                 prompt_ = prompt_.replace('<ItemIDList>', ', '.join([unk_]*ori_samples['InteractedNum'][k]))
-    #                 prompt_ = prompt_.replace("<ItemTitleList>", ori_samples['InteractedItemTitles'][k])
-    #             prompt_ = prompt_.replace("<TargetItemTitle>", ori_samples['TargetItemTitle'][k])
-    #             # prompt_ = prompt_.replace("<TargetItemID>", unk_)
-    #             # prompt_ += samples['Response'][k]
-    #             prompt_list.append(prompt_)
-            
-    #         if not self.has_print_prompt:
-    #             print("prompt example:", random.choice(prompt_list))
-    #             self.has_print_prompt = True
-            
-    #         # print(prompt_list[0])
-            
-    #         self.llama_tokenizer.padding_side = "left"
-    #         prompts_tokens = self.llama_tokenizer(
-    #         prompt_list,
-    #         return_tensors="pt",
-    #         padding="longest",
-    #         truncation=True,
-    #         max_length=self.max_txt_len,
-    #         add_special_tokens=False
-    #     ).to(ori_samples['UserID'].device)
-    #         unk_token_id = self.llama_tokenizer.unk_token_id
-    #         if not self.has_pri_decode:
-    #             print("#######prmpt decoded example: ",' '.join(self.llama_tokenizer.batch_decode(prompts_tokens.input_ids[0])))
-    #             self.has_pri_decode = True
-                
-
-    #         replaced_idx = torch.nonzero(prompts_tokens.input_ids==unk_token_id)
-    #         prompt_embeds = self.llama_model.model.embed_tokens(prompts_tokens.input_ids)
-    #         # prompt_embeds[replaced_idx[:,0],replaced_idx[:,1]] = samples['merged_embs']
-    #         if "<UserID>" in prompt_ori  and "<ItemIDList>" in prompt_ori and  "<TargetItemID>" in prompt_ori:
-    #             prompt_embeds[replaced_idx[:,0],replaced_idx[:,1]] = samples['merged_embs']
-    #         elif "<UserID>" in prompt_ori and "<TargetItemID>" in prompt_ori and "<ItemIDList>" not in prompt_ori:
-    #             prompt_embeds[replaced_idx[:,0],replaced_idx[:,1]] = torch.cat([samples['User_emb'], samples['TargetItem_emb']],dim=-2).reshape(-1,samples['User_emb'].shape[-1])
-    #         else:
-    #             pass 
-    #         return prompt_embeds, prompts_tokens.attention_mask
-
-
         
     def recprompt_wrap_v2(self, samples, ori_samples, atts_sample, prompt): # used for stage 2
         if prompt:
@@ -444,7 +381,7 @@ class MiniGPT4Rec_v2(Rec2Base):
             # interactedItems = samples['InteractedItemTitles']
             prompt_list = []
             
-            
+
             for k in range(batch_size):
                 prompt_ = prompt+""
                 # prompt_ = prompt.replace('UserID',unk_)
